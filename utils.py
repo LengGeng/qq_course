@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Tuple
 
 from requests.cookies import cookiejar_from_dict
 
@@ -54,3 +55,27 @@ def clear_screen():
         os.system('cls')
     else:
         os.system('clear')
+
+
+def parse_page(text: str) -> Tuple[int]:
+    """
+    解析页码,重复页码会被省略
+    格式
+     页码 或 页码范围(起始页码-结束页码)
+     多个可用,进行分割
+    @param text: 页码文本
+    @return: 页码列表
+    """
+    splits = text.replace("，", ",").split(",")
+    pages = []
+
+    for page in splits:
+        # 范围页码
+        if page:
+            if '-' in page:
+                s, e = page.split('-')
+                pages.extend(range(int(s), int(e) + 1))
+            else:
+                pages.append(int(page))
+
+    return tuple(set(pages))
