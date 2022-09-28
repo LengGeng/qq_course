@@ -8,122 +8,152 @@ import requests
 import urls
 from cookies import cookiejar, cookies
 from logger import logger
-from settings import PROXIES, DEFAULT_HEADERS, CURRENT_USER, COOKIES_PATH, CACHE_PATH
-from utils import print_menu, parse_page
+from settings import DEFAULT_HEADERS, PROXIES, CURRENT_USER, COOKIES_PATH, CACHE_PATH
+from utils import parse_page
 
 
 def get_all_courses():
-    # 下个版本加入该函数，用于获取用户计划内的课程，在脚本运行时不用输入cid了
-    # count参数最多为10，返回response中end代表有没有下一页
-    # 考虑到课程一般不会有几百个，所以不做分页处理
-    def _load_res(r):
-        if r:
-            for i in r.get('map_list'):
+    """
+    获取用户所有的课程
+    @return:
+    """
+
+    def add_courses_form_response(res):
+        """
+        解析响应中的课程添加到课程列表中
+        @param res: response
+        @return:
+        """
+        if res:
+            for i in res.get('map_list'):
                 for j in i.get('map_courses'):
-                    res.append({
+                    courses.append({
                         'name': j.get('cname'),
                         'cid': j.get('cid')
                     })
 
-    res = []
+    courses = []
     page = 1
-    response = requests.get(urls.CourseList,
-                            params={'page': page, 'count': '10'},
-                            headers=DEFAULT_HEADERS,
-                            cookies=cookiejar,
-                            proxies=PROXIES).json().get('result')
-    _load_res(response)
-    while response.get('end') == 0:
-        page += 1
+    response = None
+    # response.end != 0 代表有没有下一页
+    while page == 1 or response.get('end') == 0:
+        # count 参数最多为 10
         response = requests.get(urls.CourseList,
                                 params={'page': page, 'count': '10'},
                                 headers=DEFAULT_HEADERS,
                                 cookies=cookiejar,
                                 proxies=PROXIES).json().get('result')
-        _load_res(response)
-    return res
+        add_courses_form_response(response)
+        page += 1
+    return courses
 
 
 def choose_course():
+    """
+    从账号下的所有课程中选择要下载的课程
+    @return:
+    """
     courses = get_all_courses()
     print('你的账号里有如下课程：')
-    for course in courses:
-        print(str(courses.index(course)) + '. ' + course.get('name'))
-    cid = courses[int(input('请输入要下载的课程序号(回车结束)：'))].get('cid')
+    for i, course in enumerate(courses):
+        print(f"{i + 1}. {course.get('name')}")
+    index = int(input('请输入要下载的课程序号(回车结束)：'))
+    cid = courses[index - 1].get('cid')
     return cid
 
 
-def get_course_from_api(cid):
-    # 获取课程信息
-    # url = 'https://ke.qq.com/cgi-bin/course/basic_info?cid=' + str(cid)
-    url = urls.BasicInfoUri.format(cid=cid)
-    response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
-    name = (
-        response.get('result')
+def get_course_name(course):
+    """
+    从课程信息中获取课程名
+    @param course: 课程信息
+    @return:
+    """
+    return (
+        course.get('result')
             .get('course_detail')
             .get('name')
             .replace('/', '／')
             .replace('\\', '＼')
     )
-    with open(name + '.json', 'w') as f:
+
+
+def get_course_from_api(cid):
+    """
+    获取课程信息
+    @param cid: 课程ID
+    @return: 课程名
+    """
+    url = urls.BasicInfoUri.format(cid=cid)
+    response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
+
+    with CACHE_PATH.joinpath(f"{cid}.json").open('w') as f:
         json.dump(response, f, ensure_ascii=False, indent=4)
-    return name
+
+    return response
 
 
 def get_terms_from_api(cid, term_id_list):
-    # term_id_list是一个数组，里面是整数格式的term_id
+    """
+    请求获取学期信息
+    @param cid: 课程ID
+    @param term_id_list: 学期ID数组,里面是整数格式的 term_id
+    @return:
+    """
     params = {'cid': cid, 'term_id_list': term_id_list}
     response = requests.get(urls.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
     return response
 
 
-def get_terms(filename):
-    # 从json文件内获取学期信息
-    with open(filename, 'r') as f:
-        course_info = json.loads(f.read()).get('result')
-    if course_info.get('course_detail'):
-        terms = course_info.get('course_detail').get('terms')
+def get_terms(course):
+    """
+    从课程信息内获取学期信息
+    @param course: 课程信息
+    @return: 学期信息
+    """
+    course = course.get('result')
+    if course.get('course_detail'):
+        terms = course.get('course_detail').get('terms')
     else:
-        terms = course_info.get('terms')
+        terms = course.get('terms')
     return terms
 
 
-def choose_term(filename):
-    terms = get_terms(filename)
-    term_index = 0
+def choose_term(terms):
+    """
+    选择学期
+    @param terms: 学期信息
+    @return: 选择的学期信息
+    """
+    index = 1
     if len(terms) > 1:
-        print_menu([i.get('name') for i in terms])
-        term_index = int(input('请选择学期：'))
-    term = terms[term_index]
-    term_id = term.get('term_id')
-    return term_index, term_id, term
+        for i, term in enumerate(terms):
+            print(f"{i + 1}. {term.get('name')}")
+        index = int(input('请选择学期：'))
+    term = terms[index - 1]
+    return term
 
 
 def get_chapters(term):
     return term.get('chapter_info')[0].get('sub_info')
 
 
-def get_chapters_from_file(filename, term_index):
-    # 从json文件内获取章节信息
-    with open(filename, 'r') as f:
-        course_info = json.loads(f.read())
-    chapters = (
-        course_info.get('result')
-            .get('course_detail')
-            .get('terms')[term_index]
-            .get('chapter_info')[0]
-            .get('sub_info')
-    )
-    return chapters
-
-
-def choose_chapter(term):
+def choose_chapters(term):
+    """
+    选择章节
+    @param term: 学期信息
+    @return: 选择的章节信息列表
+    """
     chapters = get_chapters(term)
-    chapter_names = [chapter.get('name') for chapter in chapters]
-    print_menu(chapter_names)
-    chapter_index = int(input('请选择章节：'))
-    chapter = chapters[chapter_index]
-    return chapter
+    for i, chapter in enumerate(chapters):
+        print(f"{i + 1}. {chapter.get('name')}")
+    chapter_pages = parse_page(input('请选择章节：页码(1)或页码范围(1-5)多个可以使用逗号(,)分隔'))
+    selected_chapters = []
+    for chapter_page in chapter_pages:
+        # 判断页码是否合法
+        chapter_page -= 1
+        if 0 <= chapter_page < len(chapters):
+            selected_chapters.append(chapters[chapter_page])
+    return selected_chapters
 
 
 def get_courses_from_chapter(chapter):
@@ -132,52 +162,53 @@ def get_courses_from_chapter(chapter):
 
 def get_token_for_key_url(term_id, cid):
     """
-    这个key_url后面要接一个token，研究发现，token是如下结构base64加密后得到的
-    其中的plskey是要填的，这个东西来自登陆时的token去掉结尾的两个'='，也可以在cookies.json里获取
+    这个 key_url 后面要接一个 token,研究发现，token 是如下结构 base64 加密后得到的
+    其中的 plskey 是要填的，这个东西来自登陆时的 token 去掉结尾的两个 '='，也可以在 cookies.json 里获取
     """
     if not CURRENT_USER:
-        cookies = COOKIES_PATH
-        if cookies.exists():
-            cookies = json.loads(cookies.read_bytes())
-            uin = get_uin()
-            CURRENT_USER['uin'] = uin
-            if len(CURRENT_USER.get('uin')) > 10:
-                # 微信
-                CURRENT_USER['ext'] = cookies.get('uid_a2')
-                CURRENT_USER['appid'] = cookies.get('uid_appid')
-                CURRENT_USER['uid_type'] = cookies.get('uid_type')
-                str_token = 'uin={uin};skey=;pskey=;plskey=;ext={uid_a2};uid_appid={appid};' \
-                            'uid_type={uid_type};uid_origin_uid_type=2;uid_origin_auth_type=2;' \
-                            'cid={cid};term_id={term_id};vod_type=0;platform=3' \
-                    .format(uin=uin,
-                            uid_a2=CURRENT_USER.get('ext'),
-                            appid=CURRENT_USER.get('appid'),
-                            uid_type=CURRENT_USER.get('uid_type'),
-                            cid=cid,
-                            term_id=term_id)
-            else:
-                skey = pskey = plskey = None
-                CURRENT_USER['p_lskey'] = cookies.get('p_lskey')
-                CURRENT_USER['skey'] = cookies.get('skey')
-                CURRENT_USER['pskey'] = cookies.get('p_skey')
-                str_token = 'uin={uin};skey={skey};pskey={pskey};plskey={plskey};ext=;uid_type=0;' \
-                            'uid_origin_uid_type=0;uid_origin_auth_type=0;cid={cid};term_id={term_id};' \
-                            'vod_type=0' \
-                    .format(uin=uin,
-                            skey=CURRENT_USER.get('skey'),
-                            pskey=CURRENT_USER.get('pskey'),
-                            plskey=CURRENT_USER.get('plskey'),
-                            cid=cid,
-                            term_id=term_id)
-            CURRENT_USER['token'] = str_token
+        uin = get_uin()
+        CURRENT_USER['uin'] = uin
+        if len(uin) > 10:
+            # 微信
+            CURRENT_USER['ext'] = cookies.get('uid_a2')
+            CURRENT_USER['appid'] = cookies.get('uid_appid')
+            CURRENT_USER['uid_type'] = cookies.get('uid_type')
+            str_token = 'uin={uin};skey=;pskey=;plskey=;ext={uid_a2};uid_appid={appid};' \
+                        'uid_type={uid_type};uid_origin_uid_type=2;uid_origin_auth_type=2;' \
+                        'cid={cid};term_id={term_id};vod_type=0;platform=3' \
+                .format(uin=uin,
+                        uid_a2=CURRENT_USER.get('ext'),
+                        appid=CURRENT_USER.get('appid'),
+                        uid_type=CURRENT_USER.get('uid_type'),
+                        cid=cid,
+                        term_id=term_id)
+        else:
+            # skey = pskey = plskey = None
+            CURRENT_USER['p_lskey'] = cookies.get('p_lskey')
+            CURRENT_USER['skey'] = cookies.get('skey')
+            CURRENT_USER['pskey'] = cookies.get('p_skey')
+            str_token = 'uin={uin};skey={skey};pskey={pskey};plskey={plskey};ext=;uid_type=0;' \
+                        'uid_origin_uid_type=0;uid_origin_auth_type=0;cid={cid};term_id={term_id};' \
+                        'vod_type=0' \
+                .format(uin=uin,
+                        skey=CURRENT_USER.get('skey'),
+                        pskey=CURRENT_USER.get('pskey'),
+                        plskey=CURRENT_USER.get('plskey'),
+                        cid=cid,
+                        term_id=term_id)
+        CURRENT_USER['token'] = str_token
 
-    # 直接从CURRENT_USER里读取参数
+    # 直接从 CURRENT_USER 里读取参数
     logger.info(CURRENT_USER)
     return base64.b64encode(CURRENT_USER.get('token').encode()).decode()[:-2]
 
 
 def get_key_url_from_m3u8(m3u8_url):
-    # 传入带sign, t, us参数的m3u8下载链接
+    """
+    从 m3u8 url 中获取秘钥链接
+    @param m3u8_url: 带有 sign,t,us 参数的 m3u8 下载链接
+    @return: 秘钥链接
+    """
     m3u8_text = requests.get(m3u8_url, proxies=PROXIES).text
     pattern = re.compile(r'(https://ke.qq.com/cgi-bin/qcloud/get_dk.+)"')
     return pattern.findall(m3u8_text)[0]
@@ -185,13 +216,20 @@ def get_key_url_from_m3u8(m3u8_url):
 
 def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
     """
-    接收来自get_video_info函数返回的视频信息
-    根据video_index返回不同清晰度的视频ts下载链接
+    根据视频信息获取对应的视频及秘钥链接
+    @param video_info: 视频信息
+    @param video_index: 清晰度选择索引 -1为最后一项,清晰度最高
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @return:
     """
     video = video_info.get('videoInfo').get('transcodeList', None)
     if video:
+        # 根据 video_index 选择对应清晰度的视频下载链接
         video = video[video_index]
+        # 视频地址
         video_url = video.get('url').replace('.m3u8', '.ts')
+        # 秘钥地址,没有则是不需要解密
         key_url = (
                 get_key_url_from_m3u8(video.get('url'))
                 + '&token='
@@ -203,9 +241,9 @@ def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
 
 def get_video_info(file_id, t, sign, us):
     """
-    1258712167这个跟请求的cdn有关
-    但我发现这东西写死在js里，且不同账户下不同课程都是用这一个cdn
-    而且这东西没有通过api数据返回，初步判断它是固定的
+    1258712167 这个跟请求的 cdn 有关
+    但我发现这东西写死在 js 里，且不同账户下不同课程都是用这一个 cdn
+    而且这东西没有通过 api 数据返回，初步判断它是固定的
     因此将其作为固定参数
     """
     url = urls.MediaUri + str(file_id)
@@ -215,7 +253,12 @@ def get_video_info(file_id, t, sign, us):
 
 
 def get_video_token(term_id, file_id):
-    # 获得sign, t, us这三个参数 这三个参数用来获取视频m3u8
+    """
+    获取访问 m3u8 的 token 的参数
+    @param term_id: term_id
+    @param file_id: file_id
+    @return: sign,t,us(用来获取视频m3u8)
+    """
     params = {'term_id': term_id, 'fileId': file_id}
     response = requests.get(
         urls.TokenUri, params=params, cookies=cookiejar, proxies=PROXIES
@@ -223,21 +266,36 @@ def get_video_token(term_id, file_id):
     return response.get('result')
 
 
-def parse_cid_url(video_url):
+def parse_cid_url(course_url):
+    """
+    解析课程ID
+    @param course_url: 课程链接
+    @return: 课程ID
+    """
     pattern = re.compile('https://ke.qq.com/webcourse/(.*)/')
-    return pattern.findall(video_url)[0]
+    return pattern.findall(course_url)[0]
 
 
-def parse_video_url(video_url):
-    # 从播放url中提取出获取token要用的file_id和term_id
-    file_id = parse_qs(video_url).get('vid')[0]
-    term_id = urlparse(video_url).path.split('/')[-1]
+def parse_course_url(course_url):
+    """
+    解析课程链接
+    @param course_url: 课程链接
+    @return: 获取 token 要用的 file_id 和 term_id
+    """
+    file_id = parse_qs(course_url).get('vid')[0]
+    term_id = urlparse(course_url).path.split('/')[-1]
     return term_id, file_id
 
 
-def get_download_url_from_course_url(video_url, video_index=-1):
-    term_id, file_id = parse_video_url(video_url)
-    cid = parse_cid_url(video_url)
+def get_download_url_from_course_url(course_url, video_index=-1):
+    """
+    从课程链接中解析出需要下载的视频地址
+    @param course_url: 课程链接
+    @param video_index: 清晰度
+    @return: 视频链接
+    """
+    term_id, file_id = parse_course_url(course_url)
+    cid = parse_cid_url(course_url)
     tokens = get_video_token(term_id, file_id)
     video_info = get_video_info(
         file_id, tokens.get('t'), tokens.get('sign'), tokens.get('us')
@@ -273,7 +331,11 @@ def get_video_rec(cid, file_id, term_id, video_index=0):
 
 
 def get_course_url(course):
-    # 传入课程字典，拼接成课程链接
+    """
+    拼接课程链接
+    @param course: 课程字典
+    @return:
+    """
     cid = course.get('cid')
     term_id = course.get('term_id')
     course_id = course.get('taid')
@@ -281,21 +343,6 @@ def get_course_url(course):
         cid, term_id, course_id, course.get('resid_list')
     )
     return url
-
-
-def get_all_urls(filename, term_index):
-    chapters = get_chapters_from_file(filename, term_index)
-    result = {}
-    for chapter in chapters:
-        chapter_name = chapter.get('name')
-        courses = get_courses_from_chapter(chapter)
-        chapter_info = {}
-        for course in courses:
-            # 这里跳过了文件类附件下载
-            # TODO：添加附件下载支持
-            chapter_info.update({course.get('name'): get_course_url(course)})
-        result.update({chapter_name: chapter_info})
-    return result
 
 
 def get_uin():
