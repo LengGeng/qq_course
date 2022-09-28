@@ -10,7 +10,7 @@ from requests.utils import dict_from_cookiejar, cookiejar_from_dict
 import utils
 from logger import logger
 from settings import COOKIES_PATH, COURSES_PATH, DOMAIN
-from utils import (
+from apis import (
     print_menu,
     get_course_from_api,
     get_download_url_from_course_url,
