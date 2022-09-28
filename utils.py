@@ -15,26 +15,8 @@ import subprocess
 from urllib.parse import urlparse, parse_qs
 from urllib.request import getproxies
 
+import urls
 from logger import logger
-
-
-class API:
-    ItemsUri = 'https://ke.qq.com/cgi-bin/course/get_terms_detail'
-    TokenUri = 'https://ke.qq.com/cgi-bin/qcloud/get_token'
-    MediaUri = 'https://playvideo.qcloud.com/getplayinfo/v2/1258712167/'
-    InfoUri = 'https://ke.qq.com/cgi-bin/identity/info?'
-    BasicInfoUri = 'https://ke.qq.com/cgi-bin/course/basic_info?cid={cid}'
-    MiniAppQrcode = 'https://ke.qq.com/cgi-proxy/get_miniapp_qrcode?'
-    LoginState = 'https://ke.qq.com/cgi-proxy/get_login_state?'
-    A2Login = 'https://ke.qq.com/cgi-proxy/account_login/a2_login?'
-    XLogin = 'https://xui.ptlogin2.qq.com/cgi-bin/xlogin?'
-    PtQrShow = 'https://ssl.ptlogin2.qq.com/ptqrshow?'
-    PtQrLogin = 'https://ssl.ptlogin2.qq.com/ptqrlogin?'
-    Check = 'https://ssl.ptlogin2.qq.com/check?'
-    CourseList = 'https://ke.qq.com/cgi-proxy/user/user_center/get_plan_list'
-    VideoRec = 'https://ke.qq.com/cgi-proxy/rec_video/describe_rec_video'
-    DefaultAccount = 'https://ke.qq.com/cgi-proxy/accbind/get_default_account'
-
 
 DEFAULT_HEADERS = {'referer': 'https://ke.qq.com/webcourse/'}
 CURRENT_USER = {}
@@ -44,7 +26,7 @@ PROXIES = getproxies()  # 当你使用魔法，避免出现check_hostname requir
 def get_course_from_api(cid):
     # 获取课程信息
     # url = 'https://ke.qq.com/cgi-bin/course/basic_info?cid=' + str(cid)
-    url = API.BasicInfoUri.format(cid=cid)
+    url = urls.BasicInfoUri.format(cid=cid)
     response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
     name = (
         response.get('result')
@@ -61,7 +43,7 @@ def get_course_from_api(cid):
 def get_terms_from_api(cid, term_id_list):
     # term_id_list是一个数组，里面是整数格式的term_id
     params = {'cid': cid, 'term_id_list': term_id_list}
-    response = requests.get(API.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
+    response = requests.get(urls.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
     return response
 
 
@@ -110,9 +92,10 @@ def get_all_courses():
                         'name': j.get('cname'),
                         'cid': j.get('cid')
                     })
+
     res = []
     page = 1
-    response = requests.get(API.CourseList,
+    response = requests.get(urls.CourseList,
                             params={'page': page, 'count': '10'},
                             headers=DEFAULT_HEADERS,
                             cookies=load_json_cookies(),
@@ -120,7 +103,7 @@ def get_all_courses():
     _load_res(response)
     while response.get('end') == 0:
         page += 1
-        response = requests.get(API.CourseList,
+        response = requests.get(urls.CourseList,
                                 params={'page': page, 'count': '10'},
                                 headers=DEFAULT_HEADERS,
                                 cookies=load_json_cookies(),
@@ -241,7 +224,7 @@ def get_video_token(term_id, file_id):
     # 获得sign, t, us这三个参数 这三个参数用来获取视频m3u8
     params = {'term_id': term_id, 'fileId': file_id}
     response = requests.get(
-        API.TokenUri, params=params, cookies=load_json_cookies(), proxies=PROXIES
+        urls.TokenUri, params=params, cookies=load_json_cookies(), proxies=PROXIES
     ).json()
     return response.get('result')
 
@@ -253,7 +236,7 @@ def get_video_info(file_id, t, sign, us):
     而且这东西没有通过api数据返回，初步判断它是固定的
     因此将其作为固定参数
     """
-    url = API.MediaUri + str(file_id)
+    url = urls.MediaUri + str(file_id)
     params = {'t': t, 'sign': sign, 'us': us, 'exper': 0}
     response = requests.get(url, params=params, cookies=load_json_cookies(), proxies=PROXIES).json()
     return response
@@ -277,7 +260,7 @@ def get_token_for_key_url(term_id, cid):
                 CURRENT_USER['uid_type'] = cookies.get('uid_type')
                 str_token = 'uin={uin};skey=;pskey=;plskey=;ext={uid_a2};uid_appid={appid};' \
                             'uid_type={uid_type};uid_origin_uid_type=2;uid_origin_auth_type=2;' \
-                            'cid={cid};term_id={term_id};vod_type=0;platform=3'\
+                            'cid={cid};term_id={term_id};vod_type=0;platform=3' \
                     .format(uin=uin,
                             uid_a2=CURRENT_USER.get('ext'),
                             appid=CURRENT_USER.get('appid'),
@@ -291,7 +274,7 @@ def get_token_for_key_url(term_id, cid):
                 CURRENT_USER['pskey'] = cookies.get('p_skey')
                 str_token = 'uin={uin};skey={skey};pskey={pskey};plskey={plskey};ext=;uid_type=0;' \
                             'uid_origin_uid_type=0;uid_origin_auth_type=0;cid={cid};term_id={term_id};' \
-                            'vod_type=0'\
+                            'vod_type=0' \
                     .format(uin=uin,
                             skey=CURRENT_USER.get('skey'),
                             pskey=CURRENT_USER.get('pskey'),
@@ -366,7 +349,7 @@ def get_video_rec(cid, file_id, term_id, video_index=0):
         'term_id': term_id,
         'header': '{{"srv_appid":201,"cli_appid":"ke","uin":"{}","cli_info":{{"cli_platform":3}}}}'.format(get_uin())
     }
-    response = requests.get(API.VideoRec, headers=DEFAULT_HEADERS, params=params, proxies=PROXIES).json()
+    response = requests.get(urls.VideoRec, headers=DEFAULT_HEADERS, params=params, proxies=PROXIES).json()
     if response:
         info = response.get('result').get('rec_video_info')
         ts_url = info.get('infos')[video_index].get('url').replace('.m3u8', '.ts')
@@ -375,11 +358,10 @@ def get_video_rec(cid, file_id, term_id, video_index=0):
 
 
 def get_uin():
-    response = requests.get(API.DefaultAccount,
+    response = requests.get(urls.DefaultAccount,
                             cookies=load_json_cookies(),
                             headers=DEFAULT_HEADERS,
                             proxies=PROXIES).json()
     if response.get('retcode') == 0:
         return response.get('result').get('tiny_id')
     return input('请输入你的QQ号 / 微信uin(回车结束)：')
-
