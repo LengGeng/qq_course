@@ -6,67 +6,10 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 import urls
-from cookies import cookiejar
+from cookies import cookiejar, cookies
 from logger import logger
-from settings import PROXIES, DEFAULT_HEADERS, CURRENT_USER, COOKIES_PATH
-from utils import print_menu
-
-
-def get_course_from_api(cid):
-    # 获取课程信息
-    # url = 'https://ke.qq.com/cgi-bin/course/basic_info?cid=' + str(cid)
-    url = urls.BasicInfoUri.format(cid=cid)
-    response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
-    name = (
-        response.get('result')
-            .get('course_detail')
-            .get('name')
-            .replace('/', '／')
-            .replace('\\', '＼')
-    )
-    with open(name + '.json', 'w') as f:
-        json.dump(response, f, ensure_ascii=False, indent=4)
-    return name
-
-
-def get_terms_from_api(cid, term_id_list):
-    # term_id_list是一个数组，里面是整数格式的term_id
-    params = {'cid': cid, 'term_id_list': term_id_list}
-    response = requests.get(urls.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
-    return response
-
-
-def get_terms(filename):
-    # 从json文件内获取学期信息
-    with open(filename, 'r') as f:
-        course_info = json.loads(f.read()).get('result')
-    if course_info.get('course_detail'):
-        terms = course_info.get('course_detail').get('terms')
-    else:
-        terms = course_info.get('terms')
-    return terms
-
-
-def get_chapters_from_file(filename, term_index):
-    # 从json文件内获取章节信息
-    with open(filename, 'r') as f:
-        course_info = json.loads(f.read())
-    chapters = (
-        course_info.get('result')
-            .get('course_detail')
-            .get('terms')[term_index]
-            .get('chapter_info')[0]
-            .get('sub_info')
-    )
-    return chapters
-
-
-def get_chapters(term):
-    return term.get('chapter_info')[0].get('sub_info')
-
-
-def get_courses_from_chapter(chapter):
-    return chapter.get('task_info')
+from settings import PROXIES, DEFAULT_HEADERS, CURRENT_USER, COOKIES_PATH, CACHE_PATH
+from utils import print_menu, parse_page
 
 
 def get_all_courses():
@@ -110,30 +53,39 @@ def choose_course():
     return cid
 
 
-def get_course_url(course):
-    # 传入课程字典，拼接成课程链接
-    cid = course.get('cid')
-    term_id = course.get('term_id')
-    course_id = course.get('taid')
-    url = 'https://ke.qq.com/webcourse/{}/{}#taid={}&vid={}'.format(
-        cid, term_id, course_id, course.get('resid_list')
+def get_course_from_api(cid):
+    # 获取课程信息
+    # url = 'https://ke.qq.com/cgi-bin/course/basic_info?cid=' + str(cid)
+    url = urls.BasicInfoUri.format(cid=cid)
+    response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
+    name = (
+        response.get('result')
+            .get('course_detail')
+            .get('name')
+            .replace('/', '／')
+            .replace('\\', '＼')
     )
-    return url
+    with open(name + '.json', 'w') as f:
+        json.dump(response, f, ensure_ascii=False, indent=4)
+    return name
 
 
-def get_all_urls(filename, term_index):
-    chapters = get_chapters_from_file(filename, term_index)
-    result = {}
-    for chapter in chapters:
-        chapter_name = chapter.get('name')
-        courses = get_courses_from_chapter(chapter)
-        chapter_info = {}
-        for course in courses:
-            # 这里跳过了文件类附件下载
-            # TODO：添加附件下载支持
-            chapter_info.update({course.get('name'): get_course_url(course)})
-        result.update({chapter_name: chapter_info})
-    return result
+def get_terms_from_api(cid, term_id_list):
+    # term_id_list是一个数组，里面是整数格式的term_id
+    params = {'cid': cid, 'term_id_list': term_id_list}
+    response = requests.get(urls.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
+    return response
+
+
+def get_terms(filename):
+    # 从json文件内获取学期信息
+    with open(filename, 'r') as f:
+        course_info = json.loads(f.read()).get('result')
+    if course_info.get('course_detail'):
+        terms = course_info.get('course_detail').get('terms')
+    else:
+        terms = course_info.get('terms')
+    return terms
 
 
 def choose_term(filename):
@@ -147,6 +99,24 @@ def choose_term(filename):
     return term_index, term_id, term
 
 
+def get_chapters(term):
+    return term.get('chapter_info')[0].get('sub_info')
+
+
+def get_chapters_from_file(filename, term_index):
+    # 从json文件内获取章节信息
+    with open(filename, 'r') as f:
+        course_info = json.loads(f.read())
+    chapters = (
+        course_info.get('result')
+            .get('course_detail')
+            .get('terms')[term_index]
+            .get('chapter_info')[0]
+            .get('sub_info')
+    )
+    return chapters
+
+
 def choose_chapter(term):
     chapters = get_chapters(term)
     chapter_names = [chapter.get('name') for chapter in chapters]
@@ -156,38 +126,8 @@ def choose_chapter(term):
     return chapter
 
 
-def parse_video_url(video_url):
-    # 从播放url中提取出获取token要用的file_id和term_id
-    file_id = parse_qs(video_url).get('vid')[0]
-    term_id = urlparse(video_url).path.split('/')[-1]
-    return term_id, file_id
-
-
-def parse_cid_url(video_url):
-    pattern = re.compile('https://ke.qq.com/webcourse/(.*)/')
-    return pattern.findall(video_url)[0]
-
-
-def get_video_token(term_id, file_id):
-    # 获得sign, t, us这三个参数 这三个参数用来获取视频m3u8
-    params = {'term_id': term_id, 'fileId': file_id}
-    response = requests.get(
-        urls.TokenUri, params=params, cookies=cookiejar, proxies=PROXIES
-    ).json()
-    return response.get('result')
-
-
-def get_video_info(file_id, t, sign, us):
-    """
-    1258712167这个跟请求的cdn有关
-    但我发现这东西写死在js里，且不同账户下不同课程都是用这一个cdn
-    而且这东西没有通过api数据返回，初步判断它是固定的
-    因此将其作为固定参数
-    """
-    url = urls.MediaUri + str(file_id)
-    params = {'t': t, 'sign': sign, 'us': us, 'exper': 0}
-    response = requests.get(url, params=params, cookies=cookiejar, proxies=PROXIES).json()
-    return response
+def get_courses_from_chapter(chapter):
+    return chapter.get('task_info')
 
 
 def get_token_for_key_url(term_id, cid):
@@ -236,6 +176,13 @@ def get_token_for_key_url(term_id, cid):
     return base64.b64encode(CURRENT_USER.get('token').encode()).decode()[:-2]
 
 
+def get_key_url_from_m3u8(m3u8_url):
+    # 传入带sign, t, us参数的m3u8下载链接
+    m3u8_text = requests.get(m3u8_url, proxies=PROXIES).text
+    pattern = re.compile(r'(https://ke.qq.com/cgi-bin/qcloud/get_dk.+)"')
+    return pattern.findall(m3u8_text)[0]
+
+
 def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
     """
     接收来自get_video_info函数返回的视频信息
@@ -254,11 +201,38 @@ def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
     return video_info.get('videoInfo').get('sourceVideo').get('url'), None
 
 
-def get_key_url_from_m3u8(m3u8_url):
-    # 传入带sign, t, us参数的m3u8下载链接
-    m3u8_text = requests.get(m3u8_url, proxies=PROXIES).text
-    pattern = re.compile(r'(https://ke.qq.com/cgi-bin/qcloud/get_dk.+)"')
-    return pattern.findall(m3u8_text)[0]
+def get_video_info(file_id, t, sign, us):
+    """
+    1258712167这个跟请求的cdn有关
+    但我发现这东西写死在js里，且不同账户下不同课程都是用这一个cdn
+    而且这东西没有通过api数据返回，初步判断它是固定的
+    因此将其作为固定参数
+    """
+    url = urls.MediaUri + str(file_id)
+    params = {'t': t, 'sign': sign, 'us': us, 'exper': 0}
+    response = requests.get(url, params=params, cookies=cookiejar, proxies=PROXIES).json()
+    return response
+
+
+def get_video_token(term_id, file_id):
+    # 获得sign, t, us这三个参数 这三个参数用来获取视频m3u8
+    params = {'term_id': term_id, 'fileId': file_id}
+    response = requests.get(
+        urls.TokenUri, params=params, cookies=cookiejar, proxies=PROXIES
+    ).json()
+    return response.get('result')
+
+
+def parse_cid_url(video_url):
+    pattern = re.compile('https://ke.qq.com/webcourse/(.*)/')
+    return pattern.findall(video_url)[0]
+
+
+def parse_video_url(video_url):
+    # 从播放url中提取出获取token要用的file_id和term_id
+    file_id = parse_qs(video_url).get('vid')[0]
+    term_id = urlparse(video_url).path.split('/')[-1]
+    return term_id, file_id
 
 
 def get_download_url_from_course_url(video_url, video_index=-1):
@@ -296,6 +270,32 @@ def get_video_rec(cid, file_id, term_id, video_index=0):
         ts_url = info.get('infos')[video_index].get('url').replace('.m3u8', '.ts')
         key = info.get('dk')
         return ts_url, key
+
+
+def get_course_url(course):
+    # 传入课程字典，拼接成课程链接
+    cid = course.get('cid')
+    term_id = course.get('term_id')
+    course_id = course.get('taid')
+    url = 'https://ke.qq.com/webcourse/{}/{}#taid={}&vid={}'.format(
+        cid, term_id, course_id, course.get('resid_list')
+    )
+    return url
+
+
+def get_all_urls(filename, term_index):
+    chapters = get_chapters_from_file(filename, term_index)
+    result = {}
+    for chapter in chapters:
+        chapter_name = chapter.get('name')
+        courses = get_courses_from_chapter(chapter)
+        chapter_info = {}
+        for course in courses:
+            # 这里跳过了文件类附件下载
+            # TODO：添加附件下载支持
+            chapter_info.update({course.get('name'): get_course_url(course)})
+        result.update({chapter_name: chapter_info})
+    return result
 
 
 def get_uin():
