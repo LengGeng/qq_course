@@ -6,9 +6,10 @@ from urllib.parse import parse_qs, urlparse
 import requests
 
 import urls
+from cookies import cookiejar
 from logger import logger
 from settings import PROXIES, DEFAULT_HEADERS, CURRENT_USER, COOKIES_PATH
-from utils import load_json_cookies, print_menu
+from utils import print_menu
 
 
 def get_course_from_api(cid):
@@ -86,7 +87,7 @@ def get_all_courses():
     response = requests.get(urls.CourseList,
                             params={'page': page, 'count': '10'},
                             headers=DEFAULT_HEADERS,
-                            cookies=load_json_cookies(),
+                            cookies=cookiejar,
                             proxies=PROXIES).json().get('result')
     _load_res(response)
     while response.get('end') == 0:
@@ -94,7 +95,7 @@ def get_all_courses():
         response = requests.get(urls.CourseList,
                                 params={'page': page, 'count': '10'},
                                 headers=DEFAULT_HEADERS,
-                                cookies=load_json_cookies(),
+                                cookies=cookiejar,
                                 proxies=PROXIES).json().get('result')
         _load_res(response)
     return res
@@ -171,7 +172,7 @@ def get_video_token(term_id, file_id):
     # 获得sign, t, us这三个参数 这三个参数用来获取视频m3u8
     params = {'term_id': term_id, 'fileId': file_id}
     response = requests.get(
-        urls.TokenUri, params=params, cookies=load_json_cookies(), proxies=PROXIES
+        urls.TokenUri, params=params, cookies=cookiejar, proxies=PROXIES
     ).json()
     return response.get('result')
 
@@ -185,7 +186,7 @@ def get_video_info(file_id, t, sign, us):
     """
     url = urls.MediaUri + str(file_id)
     params = {'t': t, 'sign': sign, 'us': us, 'exper': 0}
-    response = requests.get(url, params=params, cookies=load_json_cookies(), proxies=PROXIES).json()
+    response = requests.get(url, params=params, cookies=cookiejar, proxies=PROXIES).json()
     return response
 
 
@@ -299,7 +300,7 @@ def get_video_rec(cid, file_id, term_id, video_index=0):
 
 def get_uin():
     response = requests.get(urls.DefaultAccount,
-                            cookies=load_json_cookies(),
+                            cookies=cookiejar,
                             headers=DEFAULT_HEADERS,
                             proxies=PROXIES).json()
     if response.get('retcode') == 0:

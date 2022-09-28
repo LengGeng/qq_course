@@ -1,12 +1,9 @@
-import json
 import os
 import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Tuple
-
-from requests.cookies import cookiejar_from_dict
 
 
 def print_menu(menu):
@@ -43,12 +40,6 @@ def ts2mp4(file):
     # 这个命令会报错，但是我不熟悉ffmpeg，而且似乎输出视频没有毛病，所以屏蔽了错误输出
     run_shell(cmd, retry_times=False)
     file.unlink()
-
-
-def load_json_cookies():
-    cookies = Path('cookies.json')
-    if cookies.exists():
-        return cookiejar_from_dict(json.loads(cookies.read_bytes()))
 
 
 def clear_screen():

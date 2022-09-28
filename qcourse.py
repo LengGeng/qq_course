@@ -1,15 +1,12 @@
 import asyncio
-import json
 import re
 from pathlib import Path
 from uuid import uuid1
 
-import browser_cookie3
-from requests.utils import dict_from_cookiejar, cookiejar_from_dict
-
-import utils
+from downloader import download_single
+from downloader_m3u8 import download_m3u8_raw as m3u8_down
 from logger import logger
-from settings import COOKIES_PATH, COURSES_PATH, DOMAIN
+from settings import COURSES_PATH, COOKIES_PATH
 from apis import (
     print_menu,
     get_course_from_api,
@@ -19,39 +16,8 @@ from apis import (
     choose_chapter,
     get_courses_from_chapter,
     get_chapters_from_file,
+    choose_course,
 )
-from downloader import download_single
-from downloader_m3u8 import download_m3u8_raw as m3u8_down
-
-
-class QCourse:
-    def login(self):
-        if not self.is_login():
-            # Todo: 默认用edge，下版本考虑添加浏览器选择
-            cj = browser_cookie3.edge(domain_name=DOMAIN)
-            self.save_cookies(dict_from_cookiejar(cj))
-            print('登陆成功！')
-
-    @staticmethod
-    def is_login():
-        return COOKIES_PATH.exists()
-
-    @staticmethod
-    def save_cookies(cookies):
-        with COOKIES_PATH.with_name('w') as f:
-            json.dump(cookies, f, indent=4)
-
-    @staticmethod
-    def load_cookie():
-        cookies = COOKIES_PATH
-        if cookies.exists():
-            return cookiejar_from_dict(json.loads(cookies.read_bytes()))
-
-    @staticmethod
-    def clear_cookies():
-        cookies = COOKIES_PATH
-        if cookies.exists():
-            cookies.unlink()
 
 
 async def parse_course_url_and_download(video_url, filename=None, path=None):
@@ -86,6 +52,14 @@ async def download_selected_chapter(term_id, filename, chapter_name, courses, ci
         await asyncio.wait(tasks)
 
 
+def clear_cookies():
+    """
+    清除保存的 cookies 文件
+    """
+    if COOKIES_PATH.exists():
+        COOKIES_PATH.unlink()
+
+
 def main():
     menu = ['下载单个视频', '下载课程指定章节', '下载课程全部视频', '退出登录']
     print_menu(menu)
@@ -93,15 +67,13 @@ def main():
     # ================大佬看这里================
     # 只有这一个地方用到了playwright，用来模拟登录
     # 实在不想再抓包了，等一个大佬去掉playwright依赖，改成输入账户密码，或者获取登录二维码也行
-    qq_course = QCourse()
-    qq_course.login()
     # =========================================
     if chosen == 0:
         course_url = input('输入课程链接：')
         logger.info('URL: ' + course_url)
         asyncio.run(parse_course_url_and_download(course_url))
     elif chosen == 1:
-        cid = utils.choose_course()
+        cid = choose_course()
         course_name = get_course_from_api(cid)
         print('获取课程信息成功')
         info_file = Path(course_name + '.json')
@@ -120,7 +92,7 @@ def main():
             download_selected_chapter(term_id, course_name, chapter_name, courses, cid)
         )
     elif chosen == 2:
-        cid = utils.choose_course()
+        cid = choose_course()
         course_name = get_course_from_api(cid)
         term_index, term_id, term = choose_term(course_name + '.json')
         print('获取课程信息成功,准备下载！')
@@ -141,7 +113,7 @@ def main():
                 )
             )
     elif chosen == 3:
-        QCourse.clear_cookies()
+        clear_cookies()
     else:
         print('请按要求输入！')
 
