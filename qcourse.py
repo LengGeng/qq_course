@@ -4,35 +4,44 @@ from pathlib import Path
 from uuid import uuid1
 
 from downloader import download_single
-from downloader_m3u8 import download_m3u8_raw as m3u8_down
+from downloader_m3u8 import download_m3u8_raw
 from logger import logger
 from settings import COURSES_PATH, COOKIES_PATH
 from apis import (
-    print_menu,
-    get_course_from_api,
     get_download_url_from_course_url,
-    choose_term,
     get_download_urls,
-    choose_chapter,
-    get_courses_from_chapter,
-    get_chapters_from_file,
     choose_course,
+    choose_term,
+    choose_chapters,
+    get_course_from_api,
+    get_course_name,
+    get_terms,
+    get_chapters,
+    get_courses_from_chapter
 )
 
 
-async def parse_course_url_and_download(video_url, filename=None, path=None):
+async def download_from_course_url(course_url, filename=None, path=None):
+    """
+    从课程链接进行下载
+    @param course_url: 课程链接
+    @param filename: 文件名
+    @param path: 目录
+    @return:
+    """
     if not path:
         path = COURSES_PATH
     if not filename:
         filename = str(uuid1())
-    urls = get_download_url_from_course_url(video_url, -1)
+
+    urls = get_download_url_from_course_url(course_url, -1)
     if urls[1]:
         await download_single(urls[0], urls[1], filename, path)
     else:
-        m3u8_down(urls[0], path, filename, True)
+        download_m3u8_raw(urls[0], path, filename, True)
 
 
-async def download_selected_chapter(term_id, filename, chapter_name, courses, cid):
+async def download_from_selected_chapter(term_id, filename, chapter_name, courses, cid):
     tasks = []
     for course in courses:
         path = COURSES_PATH.joinpath(filename, chapter_name)
@@ -61,61 +70,56 @@ def clear_cookies():
 
 
 def main():
-    menu = ['下载单个视频', '下载课程指定章节', '下载课程全部视频', '退出登录']
-    print_menu(menu)
+    menus = ["下载链接视频", "下载我的课程", "清除登录"]
+    for i, menu in enumerate(menus):
+        print(f"{i + 1}. {menu}")
     chosen = int(input('\n输入需要的功能：'))
-    # ================大佬看这里================
-    # 只有这一个地方用到了playwright，用来模拟登录
-    # 实在不想再抓包了，等一个大佬去掉playwright依赖，改成输入账户密码，或者获取登录二维码也行
-    # =========================================
-    if chosen == 0:
+    if chosen == 1:
         course_url = input('输入课程链接：')
-        logger.info('URL: ' + course_url)
-        asyncio.run(parse_course_url_and_download(course_url))
-    elif chosen == 1:
-        cid = choose_course()
-        course_name = get_course_from_api(cid)
-        print('获取课程信息成功')
-        info_file = Path(course_name + '.json')
-        term_index, term_id, term = choose_term(info_file)
-        chapter = choose_chapter(term)
-        chapter_name = chapter.get('name').replace('/', '／').replace('\\', '＼')
-        courses = get_courses_from_chapter(chapter)
-        logger.info('cid: {}，name: {}, term: {}, chapter: {}'.format(cid, course_name, term_id, chapter_name))
-        print('即将开始下载章节：' + chapter_name)
-        print('=' * 20)
-
-        chapter_path = COURSES_PATH.joinpath(course_name, chapter_name)
-        if not chapter_path.exists():
-            chapter_path.mkdir(parents=True)
-        asyncio.run(
-            download_selected_chapter(term_id, course_name, chapter_name, courses, cid)
-        )
+        logger.info(f"course_url={course_url}")
+        asyncio.run(download_from_course_url(course_url))
     elif chosen == 2:
+        # 选择课程
         cid = choose_course()
-        course_name = get_course_from_api(cid)
-        term_index, term_id, term = choose_term(course_name + '.json')
-        print('获取课程信息成功,准备下载！')
-        logger.info('cid: ' + cid)
-        chapters = get_chapters_from_file(course_name + '.json', term_index)
+        # 获取课程信息
+        course = get_course_from_api(cid)
+        logger.info('获取课程信息成功')
+        # 获取课程名称
+        course_name = get_course_name(course)
+        # 获取学期数据
+        terms = get_terms(course)
+        # 选择学期
+        term = choose_term(terms)
+        term_id = term.get('term_id')
+        logger.info(f"课程: {course_name}({cid}), 学期ID: {term_id}")
+        if input("是否下载所有章节:(输入任意值进入章节选择)") != "":
+            # 选择章节
+            chapters = choose_chapters(term)
+        else:
+            chapters = get_chapters(term)
+        print("开始下载章节视频")
         for chapter in chapters:
             chapter_name = chapter.get('name').replace('/', '／').replace('\\', '＼')
+            chapter_id = chapter.get("sub_id")
+            chapter_name = f"{chapter_id + 1}.{chapter_name}"
             courses = get_courses_from_chapter(chapter)
-            print('即将开始下载章节：' + chapter_name)
+            print(f"即将开始下载章节：{chapter_name} {courses[0].get('name')}")
             print('=' * 20)
 
+            # 处理章节目录
             chapter_path = COURSES_PATH.joinpath(course_name, chapter_name)
             if not chapter_path.exists():
                 chapter_path.mkdir(parents=True)
+
             asyncio.run(
-                download_selected_chapter(
+                download_from_selected_chapter(
                     term_id, course_name, chapter_name, courses, cid
                 )
             )
     elif chosen == 3:
         clear_cookies()
     else:
-        print('请按要求输入！')
+        print('请输入正确的序号！')
 
 
 if __name__ == '__main__':
