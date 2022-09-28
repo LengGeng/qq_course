@@ -17,10 +17,7 @@ from urllib.request import getproxies
 
 import urls
 from logger import logger
-
-DEFAULT_HEADERS = {'referer': 'https://ke.qq.com/webcourse/'}
-CURRENT_USER = {}
-PROXIES = getproxies()  # 当你使用魔法，避免出现check_hostname requires server_hostname
+from settings import DEFAULT_HEADERS, PROXIES, CURRENT_USER
 
 
 def get_course_from_api(cid):
