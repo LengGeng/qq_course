@@ -6,11 +6,6 @@ from pathlib import Path
 from typing import Tuple
 
 
-def print_menu(menu):
-    for item in menu:
-        print(str(menu.index(item)) + '. ' + item)
-
-
 def run_shell(shell, retry=True, retry_times=3):
     cmd = subprocess.Popen(
         shell,
