@@ -76,4 +76,4 @@ def download_m3u8_raw(m3u8_url, path: Path, filename, trash_first):
     ts2mp4(download_ts(m3u8_url, path, filename, begin))
 
 
-__all__ = ['download_ts']
+__all__ = ["download_ts", "download_m3u8_raw"]
