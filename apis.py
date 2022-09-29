@@ -278,12 +278,22 @@ def get_download_url_from_course_url(course_url, video_index=0):
     return ts_url, key_url
 
 
-def get_download_urls(term_id, file_id, video_index=-1, cid=None):
-    tokens = get_video_token(term_id, file_id)
-    video_info = get_video_info(
-        file_id, tokens.get('t'), tokens.get('sign'), tokens.get('us')
-    )
-    return get_video_url(video_info, video_index, cid=cid, term_id=term_id)
+def get_download_urls(cid, term_id, file_id, video_index=0):
+    """
+    通过 cid, term_id, file_id 获取下载的视频地址
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param file_id: 文件ID
+    @param video_index: 视频清晰度,越清晰的排序越靠前(0 最高)
+    @return: ts_url,key_url
+    """
+    # 获取视频信息
+    rec_video_info = get_rec_video_info(cid, term_id, file_id)
+    # 获取 m3u8_url
+    m3u8_url = parse_m3u8_url(rec_video_info, video_index)
+    # 获取 ts_url, key_url
+    ts_url, key_url, = get_video_url(cid, term_id, m3u8_url)
+    return ts_url, key_url
 
 
 def get_rec_video_info(cid, term_id, file_id):
