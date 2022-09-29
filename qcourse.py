@@ -45,19 +45,29 @@ async def download_from_selected_chapter(term_id, filename, chapter_name, course
     for course in courses:
         path = COURSES_PATH.joinpath(filename, chapter_name)
         course_name = course.get('name')
-        file_id = course.get('resid_list')
-        file_id = re.search(r'(\d+)', file_id).group(1)
-        urls = get_download_urls(cid, term_id, file_id)
-        tasks.append(
-            asyncio.create_task(
-                download_single(
-                    ts_url=urls[0], key_url=urls[1], filename=course_name, path=path
+
+        # 判断类型
+        course_type = course.get("type")
+        # 2: 视频,3: 附件
+        if course_type == 2:
+            file_id = course.get('resid_list')
+            file_id = re.search(r'(\d+)', file_id).group(1)
+            urls = get_download_urls(cid, term_id, file_id)
+            tasks.append(
+                asyncio.create_task(
+                    download_single(
+                        ts_url=urls[0], key_url=urls[1], filename=course_name, path=path
+                    )
                 )
             )
-        )
-    sem = asyncio.Semaphore(3)
-    async with sem:
-        await asyncio.wait(tasks)
+        else:
+            print(f"{course_name} 类型暂不支持下载")
+
+    # 启动下载任务
+    if tasks:
+        sem = asyncio.Semaphore(3)
+        async with sem:
+            await asyncio.wait(tasks)
 
 
 def clear_cookies():
