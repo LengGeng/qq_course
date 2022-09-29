@@ -236,25 +236,16 @@ def get_video_url(cid, term_id, m3u8_url):
     return ts_url, key_url
 
 
-def parse_cid_url(course_url):
-    """
-    解析课程ID
-    @param course_url: 课程链接
-    @return: 课程ID
-    """
-    pattern = re.compile('https://ke.qq.com/webcourse/(.*)/')
-    return pattern.findall(course_url)[0]
-
-
 def parse_course_url(course_url):
     """
     解析课程链接
     @param course_url: 课程链接
-    @return: 获取 token 要用的 file_id 和 term_id
+    @return: 课程ID(cid),学期ID(term_id),文件ID(file_id)
     """
-    file_id = parse_qs(course_url).get('vid')[0]
+    cid = re.compile('https://ke.qq.com/webcourse/(.*)/').findall(course_url)[0]
     term_id = urlparse(course_url).path.split('/')[-1]
-    return term_id, file_id
+    file_id = parse_qs(urlparse(course_url).fragment).get('vid')[0]
+    return cid, term_id, file_id
 
 
 def get_download_url_from_course_url(course_url, video_index=-1):
@@ -264,8 +255,7 @@ def get_download_url_from_course_url(course_url, video_index=-1):
     @param video_index: 清晰度
     @return: 视频链接
     """
-    term_id, file_id = parse_course_url(course_url)
-    cid = parse_cid_url(course_url)
+    cid, term_id, file_id = parse_course_url(course_url)
     tokens = get_video_token(term_id, file_id)
     video_info = get_video_info(
         file_id, tokens.get('t'), tokens.get('sign'), tokens.get('us')
