@@ -288,24 +288,29 @@ def get_download_urls(term_id, file_id, video_index=-1, cid=None):
     return get_video_url(video_info, video_index, cid=cid, term_id=term_id)
 
 
-def get_video_rec(cid, file_id, term_id, video_index=0):
-    # 腾讯课堂现在强制绑定手机号，看样子是更新了
-    # 新发现的接口，疑似wechat / qq通用，无需cookie，只要uin
-    # 返回dk( ts文件密匙 )，视频文件链接，时长，生存时间，字幕等信息
-    # 这里返回的rec_video_info.info里面含有不同清晰度的视频文件，越清晰的排序越靠前
+def get_rec_video_info(cid, term_id, file_id):
+    """
+    获取视频信息
+    新接口,无需 cookie,只要 uin
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param file_id: 文件ID
+    @return: rec_video_info 包含dk(ts文件密匙),视频文件链接,时长,生存时间,字幕等信息
+    """
+    header = {
+        "srv_appid": 201,
+        "cli_appid": "ke",
+        "uin": get_uin(),
+        "cli_info": {"cli_platform": 3}
+    }
     params = {
-        'course_id': cid,
-        'file_id': file_id,
-        'term_id': term_id,
-        'header': '{{"srv_appid":201,"cli_appid":"ke","uin":"{}","cli_info":{{"cli_platform":3}}}}'.format(get_uin())
+        "course_id": cid,
+        "term_id": term_id,
+        "file_id": file_id,
+        "header": json.dumps(header)
     }
     response = requests.get(urls.VideoRec, headers=DEFAULT_HEADERS, params=params, proxies=PROXIES)
-    response_json = response.json()
-    if response_json:
-        info = response_json.get('result').get('rec_video_info')
-        ts_url = info.get('infos')[video_index].get('url').replace('.m3u8', '.ts')
-        key = info.get('dk')
-        return ts_url, key
+    return response.json().get('result').get('rec_video_info')
 
 
 def get_course_url(course):
