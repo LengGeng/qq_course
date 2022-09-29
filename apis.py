@@ -317,7 +317,11 @@ def get_rec_video_info(cid, term_id, file_id):
         "file_id": file_id,
         "header": json.dumps(header)
     }
-    response = requests.get(urls.VideoRec, headers=DEFAULT_HEADERS, params=params, proxies=PROXIES)
+    response = requests.get(urls.VideoRec,
+                            params=params,
+                            cookies=cookiejar,
+                            headers=DEFAULT_HEADERS,
+                            proxies=PROXIES)
     return response.json().get('result').get('rec_video_info')
 
 
