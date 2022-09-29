@@ -31,7 +31,7 @@ def get_course_by_cid(cid):
 def get_all_courses():
     """
     获取用户所有的课程
-    @return:
+    @return: 课程信息列表
     """
 
     def add_courses_form_response(res):
@@ -67,7 +67,7 @@ def get_all_courses():
 def choose_course():
     """
     从账号下的所有课程中选择要下载的课程
-    @return:
+    @return: 选择的课程ID
     """
     courses = get_all_courses()
     print('你的账号里有如下课程：')
@@ -82,7 +82,7 @@ def get_course_name(course):
     """
     从课程信息中获取课程名
     @param course: 课程信息
-    @return:
+    @return: 课程名
     """
     return (
         course.get('result')
