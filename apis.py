@@ -163,10 +163,11 @@ def get_courses_from_chapter(chapter):
     return chapter.get('task_info')
 
 
-def get_token_for_key_url(term_id, cid):
+def get_key_url_token(term_id, cid):
     """
-    这个 key_url 后面要接一个 token,研究发现，token 是如下结构 base64 加密后得到的
-    其中的 plskey 是要填的，这个东西来自登陆时的 token 去掉结尾的两个 '='，也可以在 cookies.json 里获取
+    获取 key_url 所需的 token
+        这个 key_url 后面要接一个 token,研究发现，token 是如下结构 base64 加密后得到的
+        其中的 plskey 是要填的，这个东西来自登陆时的 token 去掉结尾的两个 '='，也可以在 cookies.json 里获取
     """
     if not CURRENT_USER:
         uin = get_uin()
@@ -236,7 +237,7 @@ def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
         key_url = (
                 get_key_url_from_m3u8(video.get('url'))
                 + '&token='
-                + get_token_for_key_url(term_id=term_id, cid=cid)
+                + get_key_url_token(term_id=term_id, cid=cid)
         )
         return video_url, key_url
     return video_info.get('videoInfo').get('sourceVideo').get('url'), None
