@@ -313,6 +313,16 @@ def get_rec_video_info(cid, term_id, file_id):
     return response.json().get('result').get('rec_video_info')
 
 
+def parse_m3u8_url(rec_video_info, video_index=0):
+    """
+    从视频信息中解析相应清晰度的 m3u8 文件链接
+    @param rec_video_info: 视频信息
+    @param video_index: 视频清晰度,越清晰的排序越靠前(0 最高)
+    @return: m3u8 url
+    """
+    return rec_video_info.get('infos')[video_index].get('url')
+
+
 def get_course_url(course):
     """
     拼接课程链接
