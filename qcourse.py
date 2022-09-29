@@ -1,6 +1,5 @@
 import asyncio
 import re
-from pathlib import Path
 from uuid import uuid1
 
 from downloader import download_single
@@ -48,7 +47,7 @@ async def download_from_selected_chapter(term_id, filename, chapter_name, course
         course_name = course.get('name')
         file_id = course.get('resid_list')
         file_id = re.search(r'(\d+)', file_id).group(1)
-        urls = get_download_urls(term_id, file_id, cid=cid)
+        urls = get_download_urls(cid, term_id, file_id)
         tasks.append(
             asyncio.create_task(
                 download_single(
