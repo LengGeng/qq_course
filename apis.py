@@ -37,7 +37,7 @@ def get_all_courses():
     def add_courses_form_response(res):
         """
         解析响应中的课程添加到课程列表中
-        @param res: response
+        @param res: result
         @return:
         """
         if res:
@@ -50,16 +50,18 @@ def get_all_courses():
 
     courses = []
     page = 1
-    response = None
-    # response.end != 0 代表有没有下一页
-    while page == 1 or response.get('end') == 0:
+    while True:
         # count 参数最多为 10
         response = requests.get(urls.CourseList,
                                 params={'page': page, 'count': '10'},
                                 headers=DEFAULT_HEADERS,
                                 cookies=cookiejar,
-                                proxies=PROXIES).json().get('result')
-        add_courses_form_response(response)
+                                proxies=PROXIES)
+        result = response.json().get('result')
+        add_courses_form_response(result)
+        # result 不存在或 response.end != 0 代表有没有下一页
+        if not result or response.json().get('end') != 0:
+            break
         page += 1
     return courses
 
