@@ -243,33 +243,6 @@ def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
     return video_info.get('videoInfo').get('sourceVideo').get('url'), None
 
 
-def get_video_info(file_id, t, sign, us):
-    """
-    1258712167 这个跟请求的 cdn 有关
-    但我发现这东西写死在 js 里，且不同账户下不同课程都是用这一个 cdn
-    而且这东西没有通过 api 数据返回，初步判断它是固定的
-    因此将其作为固定参数
-    """
-    url = urls.MediaUri + str(file_id)
-    params = {'t': t, 'sign': sign, 'us': us, 'exper': 0}
-    response = requests.get(url, params=params, cookies=cookiejar, proxies=PROXIES)
-    return response.json()
-
-
-def get_video_token(term_id, file_id):
-    """
-    获取访问 m3u8 的 token 的参数
-    @param term_id: term_id
-    @param file_id: file_id
-    @return: sign,t,us(用来获取视频m3u8)
-    """
-    params = {'term_id': term_id, 'fileId': file_id}
-    response = requests.get(
-        urls.TokenUri, params=params, cookies=cookiejar, proxies=PROXIES
-    )
-    return response.json().get('result')
-
-
 def parse_cid_url(course_url):
     """
     解析课程ID
