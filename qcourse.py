@@ -13,7 +13,7 @@ from apis import (
     choose_course,
     choose_term,
     choose_chapters,
-    get_course_from_api,
+    get_course_by_cid,
     get_course_name,
     get_terms,
     get_chapters,
@@ -82,7 +82,7 @@ def main():
         # 选择课程
         cid = choose_course()
         # 获取课程信息
-        course = get_course_from_api(cid)
+        course = get_course_by_cid(cid)
         logger.info('获取课程信息成功')
         # 获取课程名称
         course_name = get_course_name(course)

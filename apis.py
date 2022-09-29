@@ -12,6 +12,22 @@ from settings import DEFAULT_HEADERS, PROXIES, CURRENT_USER, COOKIES_PATH, CACHE
 from utils import parse_page
 
 
+def get_course_by_cid(cid):
+    """
+    获取课程信息
+    @param cid: 课程ID
+    @return: 课程信息
+    """
+    url = urls.BasicInfoUri.format(cid=cid)
+    response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES)
+
+    response_json = response.json()
+    with CACHE_PATH.joinpath(f"{cid}.json").open('w') as f:
+        json.dump(response_json, f, ensure_ascii=False, indent=4)
+
+    return response_json
+
+
 def get_all_courses():
     """
     获取用户所有的课程
@@ -75,21 +91,6 @@ def get_course_name(course):
             .replace('/', '／')
             .replace('\\', '＼')
     )
-
-
-def get_course_from_api(cid):
-    """
-    获取课程信息
-    @param cid: 课程ID
-    @return: 课程名
-    """
-    url = urls.BasicInfoUri.format(cid=cid)
-    response = requests.get(url, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
-
-    with CACHE_PATH.joinpath(f"{cid}.json").open('w') as f:
-        json.dump(response, f, ensure_ascii=False, indent=4)
-
-    return response
 
 
 def get_terms_from_api(cid, term_id_list):
