@@ -221,29 +221,19 @@ def get_key_url_from_m3u8(m3u8_url):
     return pattern.findall(m3u8_text)[0]
 
 
-def get_video_url(video_info, video_index=-1, cid=None, term_id=None):
+def get_video_url(cid, term_id, m3u8_url):
     """
-    根据视频信息获取对应的视频及秘钥链接
-    @param video_info: 视频信息
-    @param video_index: 清晰度选择索引 -1为最后一项,清晰度最高
+    根据 m3u8_url 解析视频链接(ts_url)及秘钥链接(key_url)
     @param cid: 课程ID
     @param term_id: 学期ID
-    @return:
+    @param m3u8_url: m3u8_url
+    @return: ts_url,key_url
     """
-    video = video_info.get('videoInfo').get('transcodeList', None)
-    if video:
-        # 根据 video_index 选择对应清晰度的视频下载链接
-        video = video[video_index]
-        # 视频地址
-        video_url = video.get('url').replace('.m3u8', '.ts')
-        # 秘钥地址,没有则是不需要解密
-        key_url = (
-                get_key_url_from_m3u8(video.get('url'))
-                + '&token='
-                + get_key_url_token(term_id=term_id, cid=cid)
-        )
-        return video_url, key_url
-    return video_info.get('videoInfo').get('sourceVideo').get('url'), None
+    # 视频地址
+    ts_url = m3u8_url.replace('.m3u8', '.ts')
+    # 秘钥地址
+    key_url = f"{get_key_url_from_m3u8(m3u8_url)}&token={get_key_url_token(cid, term_id)}"
+    return ts_url, key_url
 
 
 def parse_cid_url(course_url):
