@@ -103,8 +103,8 @@ def get_terms_from_api(cid, term_id_list):
     @return:
     """
     params = {'cid': cid, 'term_id_list': term_id_list}
-    response = requests.get(urls.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES).json()
-    return response
+    response = requests.get(urls.ItemsUri, params=params, headers=DEFAULT_HEADERS, proxies=PROXIES)
+    return response.json()
 
 
 def get_terms(course):
@@ -251,8 +251,8 @@ def get_video_info(file_id, t, sign, us):
     """
     url = urls.MediaUri + str(file_id)
     params = {'t': t, 'sign': sign, 'us': us, 'exper': 0}
-    response = requests.get(url, params=params, cookies=cookiejar, proxies=PROXIES).json()
-    return response
+    response = requests.get(url, params=params, cookies=cookiejar, proxies=PROXIES)
+    return response.json()
 
 
 def get_video_token(term_id, file_id):
@@ -265,8 +265,8 @@ def get_video_token(term_id, file_id):
     params = {'term_id': term_id, 'fileId': file_id}
     response = requests.get(
         urls.TokenUri, params=params, cookies=cookiejar, proxies=PROXIES
-    ).json()
-    return response.get('result')
+    )
+    return response.json().get('result')
 
 
 def parse_cid_url(course_url):
@@ -325,9 +325,10 @@ def get_video_rec(cid, file_id, term_id, video_index=0):
         'term_id': term_id,
         'header': '{{"srv_appid":201,"cli_appid":"ke","uin":"{}","cli_info":{{"cli_platform":3}}}}'.format(get_uin())
     }
-    response = requests.get(urls.VideoRec, headers=DEFAULT_HEADERS, params=params, proxies=PROXIES).json()
-    if response:
-        info = response.get('result').get('rec_video_info')
+    response = requests.get(urls.VideoRec, headers=DEFAULT_HEADERS, params=params, proxies=PROXIES)
+    response_json = response.json()
+    if response_json:
+        info = response_json.get('result').get('rec_video_info')
         ts_url = info.get('infos')[video_index].get('url').replace('.m3u8', '.ts')
         key = info.get('dk')
         return ts_url, key
@@ -352,7 +353,8 @@ def get_uin():
     response = requests.get(urls.DefaultAccount,
                             cookies=cookiejar,
                             headers=DEFAULT_HEADERS,
-                            proxies=PROXIES).json()
-    if response.get('retcode') == 0:
-        return response.get('result').get('tiny_id')
+                            proxies=PROXIES)
+    response_json = response.json()
+    if response_json.get('retcode') == 0:
+        return response_json.get('result').get('tiny_id')
     return input('请输入你的QQ号 / 微信uin(回车结束)：')
