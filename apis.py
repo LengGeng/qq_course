@@ -248,19 +248,22 @@ def parse_course_url(course_url):
     return cid, term_id, file_id
 
 
-def get_download_url_from_course_url(course_url, video_index=-1):
+def get_download_url_from_course_url(course_url, video_index=0):
     """
     从课程链接中解析出需要下载的视频地址
     @param course_url: 课程链接
-    @param video_index: 清晰度
-    @return: 视频链接
+    @param video_index: 视频清晰度,越清晰的排序越靠前(0 最高)
+    @return: ts_url,key_url
     """
+    # 解析课程链接参数
     cid, term_id, file_id = parse_course_url(course_url)
-    tokens = get_video_token(term_id, file_id)
-    video_info = get_video_info(
-        file_id, tokens.get('t'), tokens.get('sign'), tokens.get('us')
-    )
-    return get_video_url(video_info, video_index, cid=cid, term_id=term_id)
+    # 获取视频信息
+    rec_video_info = get_rec_video_info(cid, term_id, file_id)
+    # 获取 m3u8_url
+    m3u8_url = parse_m3u8_url(rec_video_info, video_index)
+    # 获取 ts_url, key_url
+    ts_url, key_url, = get_video_url(cid, term_id, m3u8_url)
+    return ts_url, key_url
 
 
 def get_download_urls(term_id, file_id, video_index=-1, cid=None):
