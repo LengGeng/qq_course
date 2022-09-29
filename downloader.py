@@ -18,7 +18,7 @@ def add_to_16(value):
 def decrypt(ciphertext, key):
     iv = ciphertext[:AES.block_size]
     cipher = AES.new(key, AES.MODE_CBC, iv)
-    plaintext = cipher.decrypt(ciphertext[AES.block_size :])
+    plaintext = cipher.decrypt(ciphertext[AES.block_size:])
     return plaintext.rstrip(b'\0')
 
 
@@ -88,8 +88,7 @@ async def async_download(url, path: Path, filename):
     client = httpx.AsyncClient(
         timeout=httpx.Timeout(10, connect=5, read=5, write=5, pool=5)
     )
-    filename_ext = filename + '.ts'
-    base_file = path.joinpath(filename_ext)
+    base_file = path.joinpath(filename)
     size = 0
     async with client.stream('GET', url) as response:
         content_size = int(response.headers['content-length'])
@@ -109,7 +108,7 @@ async def async_download(url, path: Path, filename):
                 if datetime.datetime.now() - last_show_time > delta_time:
                     progress(size / content_size * 100, filename=filename)
                     last_show_time = datetime.datetime.now()
-    logger.info('Download '+filename)
+    logger.info('Download ' + filename)
     await client.aclose()
 
 
@@ -136,18 +135,25 @@ def _download(url, path: Path, filename):
 
 
 async def download_single(ts_url, key_url, filename, path):
-    print(filename, '开始下载')
+    print(f"{filename} 开始下载！")
+    # 处理路径
     filename = filename.replace('/', '／').replace('\\', '＼')
-    file: Path = path.joinpath(filename)
-    final_video_name = file.name.split('.')[0] + '.mp4'
-    if file.parent.joinpath(final_video_name).exists():
-        print(final_video_name + '已存在！')
+    ts_file: Path = path.joinpath(f"{filename}.ts")
+    key_file = path.joinpath("key")
+    video_file = path.joinpath(f"{ts_file.stem}.mp4")
+    # 判断是否下载过
+    if video_file.exists():
+        print(f"{video_file} 已存在！")
         return
-    await async_download(ts_url, path, filename)
+    # 下载视频
+    await async_download(ts_url, path, ts_file.name)
     # _download(ts_url, path, filename)
-    download(file_url=key_url, file=file)
-    key = get_key(file)
-    decrypt_file(str(file) + '.ts', key)
-    file.unlink()
-    ts2mp4(str(file) + '.ts')
-    print('\n' + filename + ' 下载完成！')
+    # 下载秘钥
+    download(file_url=key_url, file=key_file)
+    # 解密文件
+    key = get_key(key_file)
+    decrypt_file(ts_file, key)
+    key_file.unlink()
+    # 合成 MP4
+    ts2mp4(ts_file)
+    print(f"\n{filename} 下载完成！")
