@@ -248,6 +248,18 @@ def parse_course_url(course_url):
     return cid, term_id, file_id
 
 
+def compose_course_url(cid, term_id, file_id):
+    """
+    合成课程链接
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param file_id: 文件ID
+    @return: 课程链接
+    """
+    url = f"https://ke.qq.com/webcourse/{cid}/{term_id}#vid={file_id}"
+    return url
+
+
 def get_download_url_from_course_url(course_url, video_index=0):
     """
     从课程链接中解析出需要下载的视频地址
@@ -307,21 +319,6 @@ def parse_m3u8_url(rec_video_info, video_index=0):
     @return: m3u8 url
     """
     return rec_video_info.get('infos')[video_index].get('url')
-
-
-def get_course_url(course):
-    """
-    拼接课程链接
-    @param course: 课程字典
-    @return:
-    """
-    cid = course.get('cid')
-    term_id = course.get('term_id')
-    course_id = course.get('taid')
-    url = 'https://ke.qq.com/webcourse/{}/{}#taid={}&vid={}'.format(
-        cid, term_id, course_id, course.get('resid_list')
-    )
-    return url
 
 
 def get_uin():
