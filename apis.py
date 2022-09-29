@@ -163,11 +163,14 @@ def get_courses_from_chapter(chapter):
     return chapter.get('task_info')
 
 
-def get_key_url_token(term_id, cid):
+def get_key_url_token(cid, term_id):
     """
     获取 key_url 所需的 token
-        这个 key_url 后面要接一个 token,研究发现，token 是如下结构 base64 加密后得到的
-        其中的 plskey 是要填的，这个东西来自登陆时的 token 去掉结尾的两个 '='，也可以在 cookies.json 里获取
+      这个 key_url 后面要接一个 token,研究发现，token 是如下结构 base64 加密后得到的
+      其中的 plskey 是要填的，这个东西来自登陆时的 token 去掉结尾的两个 '='，也可以在 cookies.json 里获取
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @return: key_url_token
     """
     if not CURRENT_USER:
         uin = get_uin()
