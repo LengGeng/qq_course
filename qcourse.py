@@ -1,12 +1,9 @@
-import asyncio
 import re
 from uuid import uuid1
 
-from downloader import download_single
 from logger import logger
 from settings import COURSES_PATH, COOKIES_PATH
 from apis import (
-    get_download_urls,
     choose_course,
     choose_term,
     choose_chapters,
@@ -40,28 +37,34 @@ def download_from_course_url(course_url, filename=None, path=None):
     download_course(m3u8_url, cid, term_id, path.joinpath(f"{filename}.mp4"))
 
 
-async def download_from_selected_chapter(term_id, filename, chapter_name, courses, cid):
-    tasks = []
-    for course in courses:
-        path = COURSES_PATH.joinpath(filename, chapter_name)
-        course_name = course.get('name')
-
+def download_from_selected_chapter(cid, term_id, tasks, chapter_path):
+    """
+    从选择的章节进行下载
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param tasks: 任务列表
+    @param chapter_path: 章节目录
+    @return:
+    """
+    for task in tasks:
+        # 任务名
+        task_name = task.get('name')
         # 判断类型
-        course_type = course.get("type")
+        task_type = task.get("type")
         # 2: 视频,3: 附件
-        if course_type == 2:
-            file_id = course.get('resid_list')
+        if task_type == 2:
+            file_id = task.get('resid_list')
             file_id = re.search(r'(\d+)', file_id).group(1)
             m3u8_url = get_m3u8_url(cid, term_id, file_id)
-            filename = course_name.replace('/', '／').replace('\\', '＼')
-            filepath = path.joinpath(f"{filename}.mp4")
+            filename = task_name.replace('/', '／').replace('\\', '＼')
+            filepath = chapter_path.joinpath(f"{filename}.mp4")
             # 判断是否下载过
             if filepath.exists():
                 print(f"{filepath} 已存在！")
                 continue
             download_course(m3u8_url, cid, term_id, filepath)
         else:
-            print(f"{course_name} 类型暂不支持下载")
+            print(f"{task_name} 类型暂不支持下载")
 
 
 def clear_cookies():
@@ -105,19 +108,17 @@ def main():
             chapter_name = chapter.get('name').replace('/', '／').replace('\\', '＼')
             chapter_id = chapter.get("sub_id")
             chapter_name = f"{chapter_id + 1}.{chapter_name}"
-            courses = get_courses_from_chapter(chapter)
-            print(f"即将开始下载章节：{chapter_name} {courses[0].get('name')}")
-            print('=' * 20)
+            tasks = get_courses_from_chapter(chapter)
+            print('=' * 50)
+            print(f"即将开始下载章节：{chapter_name}")
 
             # 处理章节目录
             chapter_path = COURSES_PATH.joinpath(course_name, chapter_name)
             if not chapter_path.exists():
                 chapter_path.mkdir(parents=True)
 
-            asyncio.run(
-                download_from_selected_chapter(
-                    term_id, course_name, chapter_name, courses, cid
-                )
+            download_from_selected_chapter(
+                cid, term_id, tasks, chapter_path
             )
     elif chosen == 3:
         clear_cookies()
