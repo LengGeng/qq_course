@@ -191,7 +191,7 @@ def get_key_url_token(cid, term_id):
                         term_id=term_id)
         else:
             # skey = pskey = plskey = None
-            CURRENT_USER['p_lskey'] = cookies.get('p_lskey')
+            CURRENT_USER['plskey'] = cookies.get('p_lskey')
             CURRENT_USER['skey'] = cookies.get('skey')
             CURRENT_USER['pskey'] = cookies.get('p_skey')
             str_token = 'uin={uin};skey={skey};pskey={pskey};plskey={plskey};ext=;uid_type=0;' \
