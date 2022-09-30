@@ -337,6 +337,22 @@ def parse_m3u8_url(rec_video_info, video_index=0):
     return rec_video_info.get('infos')[video_index].get('url')
 
 
+def get_m3u8_url(cid, term_id, file_id, video_index=0):
+    """
+    通过 cid, term_id, file_id 获取 m3u8_url
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param file_id: 文件ID
+    @param video_index: 视频清晰度,越清晰的排序越靠前(0 最高)
+    @return: m3u8_url
+    """
+    # 获取视频信息
+    rec_video_info = get_rec_video_info(cid, term_id, file_id)
+    # 获取 m3u8_url
+    m3u8_url = parse_m3u8_url(rec_video_info, video_index)
+    return m3u8_url
+
+
 def download_course(url, cid, term_id, output_path: Path):
     """
     通过 m3u8 链接下载课程(下载 ts 碎片文件再合成)
