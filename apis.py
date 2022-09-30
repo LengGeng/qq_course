@@ -1,13 +1,15 @@
 import base64
 import json
 import re
-from urllib.parse import parse_qs, urlparse
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse, urljoin
 
 import requests
 
 import urls
 from cookies import cookiejar, cookies
 from logger import logger
+from m3u8Utils import get_m3u8_content, parse_m3u8, download_ts_split, merge_ts_copy, download_m3u8
 from settings import DEFAULT_HEADERS, PROXIES, CURRENT_USER, COOKIES_PATH, CACHE_PATH
 from utils import parse_page
 
@@ -334,6 +336,60 @@ def parse_m3u8_url(rec_video_info, video_index=0):
     """
     return rec_video_info.get('infos')[video_index].get('url')
 
+
+def download_course(url, cid, term_id, output_path: Path):
+    """
+    通过 m3u8 链接下载课程(下载 ts 碎片文件再合成)
+    @param url: m3u8 链接
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param output_path: 保存文件路径
+    @return:
+    """
+    # 解析 m3u8 文件
+    key_url, ts_urls = parse_m3u8(url)
+
+    # 拼接带有用户认证的 key_url
+    key_url = f"{key_url}&token={get_key_url_token(cid, term_id)}"
+
+    # 获取 key
+    key = requests.get(key_url).content
+    # print(f"key_url={key_url}")
+    # print(ts_urls)
+
+    # 下载 ts 文件
+    output_dir = output_path.parent
+    print(f"开始下载 {output_path.name} ts 片段")
+    ts_files = download_ts_split(ts_urls, key, output_dir)
+    print(f"{output_path.name} ts 片段下载完成")
+
+    # 合并 ts 文件
+    # merge_ts_ffmpeg(ts_files, output_path) # 不知道为什么,使用这个方法合成的视频时长有误差
+    print(f"开始合并 {output_path.name} ts 片段")
+    merge_ts_copy(output_dir, output_path)
+    print(f"{output_path.name} ts 片段合并完成")
+
+
+def download_course_m3u8(url, cid, term_id, output_path: Path):
+    """
+    通过 m3u8 链接下载课程(直接下载)
+    @param url: m3u8 链接
+    @param cid: 课程ID
+    @param term_id: 学期ID
+    @param output_path: 保存文件路径
+    @return:
+    """
+    headers = "'referer': 'https://ke.qq.com/webcourse/'"
+
+    def handle_key_url(key_url):
+        return f"{key_url}&token={get_key_url_token(cid, term_id)}"
+
+    def handle_ts_url(_, ts_url):
+        return urljoin(url, ts_url)
+
+    print(f"开始解析下载 {output_path.name}")
+    download_m3u8(url, output_path, handle_key_url=handle_key_url, handle_ts_url=handle_ts_url, headers=headers)
+    print(f"视频  {output_path.name} 下载完成")
 
 def get_uin():
     response = requests.get(urls.DefaultAccount,
