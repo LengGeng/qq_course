@@ -52,22 +52,16 @@ async def download_from_selected_chapter(term_id, filename, chapter_name, course
         if course_type == 2:
             file_id = course.get('resid_list')
             file_id = re.search(r'(\d+)', file_id).group(1)
-            urls = get_download_urls(cid, term_id, file_id)
-            tasks.append(
-                asyncio.create_task(
-                    download_single(
-                        ts_url=urls[0], key_url=urls[1], filename=course_name, path=path
-                    )
-                )
-            )
+            m3u8_url = get_m3u8_url(cid, term_id, file_id)
+            filename = course_name.replace('/', '／').replace('\\', '＼')
+            filepath = path.joinpath(f"{filename}.mp4")
+            # 判断是否下载过
+            if filepath.exists():
+                print(f"{filepath} 已存在！")
+                continue
+            download_course(m3u8_url, cid, term_id, filepath)
         else:
             print(f"{course_name} 类型暂不支持下载")
-
-    # 启动下载任务
-    if tasks:
-        sem = asyncio.Semaphore(3)
-        async with sem:
-            await asyncio.wait(tasks)
 
 
 def clear_cookies():
