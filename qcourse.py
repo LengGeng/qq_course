@@ -3,11 +3,9 @@ import re
 from uuid import uuid1
 
 from downloader import download_single
-from downloader_m3u8 import download_m3u8_raw
 from logger import logger
 from settings import COURSES_PATH, COOKIES_PATH
 from apis import (
-    get_download_url_from_course_url,
     get_download_urls,
     choose_course,
     choose_term,
@@ -16,11 +14,14 @@ from apis import (
     get_course_name,
     get_terms,
     get_chapters,
-    get_courses_from_chapter
+    get_courses_from_chapter,
+    parse_course_url,
+    get_m3u8_url,
+    download_course
 )
 
 
-async def download_from_course_url(course_url, filename=None, path=None):
+def download_from_course_url(course_url, filename=None, path=None):
     """
     从课程链接进行下载
     @param course_url: 课程链接
@@ -33,11 +34,10 @@ async def download_from_course_url(course_url, filename=None, path=None):
     if not filename:
         filename = str(uuid1())
 
-    urls = get_download_url_from_course_url(course_url, -1)
-    if urls[1]:
-        await download_single(urls[0], urls[1], filename, path)
-    else:
-        download_m3u8_raw(urls[0], path, filename, True)
+    cid, term_id, file_id = parse_course_url(course_url)
+
+    m3u8_url = get_m3u8_url(cid, term_id, file_id)
+    download_course(m3u8_url, cid, term_id, path.joinpath(f"{filename}.mp4"))
 
 
 async def download_from_selected_chapter(term_id, filename, chapter_name, courses, cid):
@@ -86,7 +86,7 @@ def main():
     if chosen == 1:
         course_url = input('输入课程链接：')
         logger.info(f"course_url={course_url}")
-        asyncio.run(download_from_course_url(course_url))
+        download_from_course_url(course_url)
     elif chosen == 2:
         # 选择课程
         cid = choose_course()
