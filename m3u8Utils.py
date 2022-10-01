@@ -50,13 +50,14 @@ def parse_m3u8(url: str, content: str = None, join_ts_url: bool = True):
     return key_url, ts_urls
 
 
-def download_ts_split(ts_urls, key, output_dir: Path):
+def download_ts_split(ts_urls, key, output_dir: Path, progress_bar):
     """
     下载 m3u8 ts 文件列表
     @param ts_urls: ts 文件列表
     @param key: 解密文件,没有不进行解密
     @param output_dir: 保存目录
     @return: 下载的 ts 路径列表
+    @param progress_bar: 下载进度条
     """
     output_files = []
 
@@ -66,6 +67,7 @@ def download_ts_split(ts_urls, key, output_dir: Path):
 
     for i, ts_url in enumerate(ts_urls):
         res = requests.get(ts_url)
+        progress_bar.addition(len(res.content))
         output_path = output_dir.joinpath(f"{i}.ts")
         output_files.append(output_path.resolve())
 

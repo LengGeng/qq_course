@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, urlparse, urljoin
 import requests
 
 import urls
+from ProgressBarUtils import DownloaderProgressBar
 from cookies import cookiejar, cookies
 from logger import logger
 from m3u8Utils import get_m3u8_content, parse_m3u8, download_ts_split, merge_ts_copy, download_m3u8
@@ -375,15 +376,18 @@ def download_course(url, cid, term_id, output_path: Path):
 
     # 下载 ts 文件
     output_dir = output_path.parent
-    print(f"开始下载 {output_path.name} ts 片段")
-    ts_files = download_ts_split(ts_urls, key, output_dir)
-    print(f"{output_path.name} ts 片段下载完成")
+    print(f"即将开始开始下载 {output_path}")
+    # 获取文件大小
+    size = int(parse_qs(urlparse(ts_urls[-1]).query).get("end")[0])
+    progress_bar = DownloaderProgressBar(output_path.name, size)
+    ts_files = download_ts_split(ts_urls, key, output_dir, progress_bar)
 
     # 合并 ts 文件
     # merge_ts_ffmpeg(ts_files, output_path) # 不知道为什么,使用这个方法合成的视频时长有误差
-    print(f"开始合并 {output_path.name} ts 片段")
+    print(f"开始合并 {output_path.name}")
     merge_ts_copy(output_dir, output_path)
-    print(f"{output_path.name} ts 片段合并完成")
+    print(f"合并完成 {output_path.name}")
+    print('-' * 40)
 
 
 def download_course_m3u8(url, cid, term_id, output_path: Path):
@@ -406,6 +410,7 @@ def download_course_m3u8(url, cid, term_id, output_path: Path):
     print(f"开始解析下载 {output_path.name}")
     download_m3u8(url, output_path, handle_key_url=handle_key_url, handle_ts_url=handle_ts_url, headers=headers)
     print(f"视频  {output_path.name} 下载完成")
+
 
 def get_uin():
     response = requests.get(urls.DefaultAccount,
