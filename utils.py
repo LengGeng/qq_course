@@ -66,3 +66,20 @@ def parse_page(text: str) -> Tuple[int]:
                 pages.append(int(page))
 
     return tuple(set(pages))
+
+
+def size_format(size: int, *, pro: int = 1.0, dec: int = 2):
+    """文件大小格式化
+    :param size: 文件大小，单位byte
+    :param pro: 单位转换进行的比例
+    :param dec: 文件大小浮点数的精确单位
+    :return: 文件单位格式化大小
+    """
+    unit: list = ["B", "KB", "MB", "GB", "TB", "PB"]
+    pos: int = 0
+    while size >= 1024 * pro:
+        size /= 1024
+        pos += 1
+        if pos >= len(unit):
+            break
+    return str(round(size, dec)) + unit[pos]
