@@ -98,12 +98,9 @@ def main():
         term = choose_term(terms)
         term_id = term.get('term_id')
         logger.info(f"课程: {course_name}({cid}), 学期ID: {term_id}")
-        if input("是否下载所有章节:(输入任意值进入章节选择)") != "":
-            # 选择章节
-            chapters = choose_chapters(term)
-        else:
-            chapters = get_chapters(term)
-        print("开始下载章节视频")
+        # 选择章节
+        chapters = choose_chapters(term)
+        print(f"即将开始下载共计 {len(chapters)} 个章节的内容")
         for chapter in chapters:
             chapter_name = chapter.get('name').replace('/', '／').replace('\\', '＼')
             chapter_id = chapter.get("sub_id")

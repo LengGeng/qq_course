@@ -149,17 +149,27 @@ def choose_chapters(term):
     @param term: 学期信息
     @return: 选择的章节信息列表
     """
+    # 获取所有章节
     chapters = get_chapters(term)
+    # 展示所有章节
     for i, chapter in enumerate(chapters):
         print(f"{i + 1}. {chapter.get('name')}")
-    chapter_pages = parse_page(input('请选择章节：页码(1)或页码范围(1-5)多个可以使用逗号(,)分隔'))
-    selected_chapters = []
-    for chapter_page in chapter_pages:
-        # 判断页码是否合法
-        chapter_page -= 1
-        if 0 <= chapter_page < len(chapters):
-            selected_chapters.append(chapters[chapter_page])
-    return selected_chapters
+    # 用户输入页码
+    page_content = input('请输入需要下载的章节页码(回车下载所有章节):')
+    # 处理用户输入的页码
+    if page_content == "":
+        return chapters
+    else:
+        # 解析页码
+        chapter_pages = parse_page(page_content)
+        selected_chapters = []
+        # 处理页码对应的章节信息
+        for chapter_page in chapter_pages:
+            # 判断页码是否合法
+            chapter_page -= 1
+            if 0 <= chapter_page < len(chapters):
+                selected_chapters.append(chapters[chapter_page])
+        return selected_chapters
 
 
 def get_courses_from_chapter(chapter):
