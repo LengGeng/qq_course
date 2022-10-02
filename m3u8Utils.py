@@ -127,19 +127,17 @@ def merge_ts_ffmpeg(ts_files, output_path: Path):
     @return:
     """
     output_dir = output_path.parent
-    ts_files_txt = output_dir.joinpath("ts_files.txt")
+
     # 生成 ts_files.txt
+    ts_files_txt = output_dir.joinpath("ts_files.txt")
     with ts_files_txt.open('w') as fp:
         for ts_file in ts_files:
             fp.write(f"file '{ts_file}'\n")
-
+    # 合成视频
     cmd = f'ffmpeg -f concat -safe 0 -i "{ts_files_txt}" -c copy "{output_path}"'
-    p = Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL)
-    return_code = p.wait()
-    if return_code:
-        print(f"{return_code} 合并 ts 文件发生异常")
-    else:
-        print(f"合并 ts 文件完成")
+    Popen(cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL).wait()
+    # 删除 ts_files.txt
+    ts_files_txt.unlink()
     # 删除 ts 文件
     del_ts_cmd = f'del /Q "{output_dir.joinpath("*.ts")}"'
     Popen(del_ts_cmd, shell=True, stdout=DEVNULL, stderr=DEVNULL).wait()

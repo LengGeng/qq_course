@@ -10,8 +10,8 @@ import urls
 from ProgressBarUtils import DownloaderProgressBar
 from cookies import cookiejar, cookies
 from logger import logger
-from m3u8Utils import get_m3u8_content, parse_m3u8, download_ts_split, merge_ts_copy, download_m3u8
-from settings import DEFAULT_HEADERS, PROXIES, CURRENT_USER, COOKIES_PATH, CACHE_PATH
+from m3u8Utils import parse_m3u8, download_ts_split, merge_ts_ffmpeg, download_m3u8
+from settings import DEFAULT_HEADERS, PROXIES, CURRENT_USER, CACHE_PATH
 from utils import parse_page
 
 
@@ -383,9 +383,9 @@ def download_course(url, cid, term_id, output_path: Path):
     ts_files = download_ts_split(ts_urls, key, output_dir, progress_bar)
 
     # 合并 ts 文件
-    # merge_ts_ffmpeg(ts_files, output_path) # 不知道为什么,使用这个方法合成的视频时长有误差
     print(f"开始合并 {output_path.name}")
-    merge_ts_copy(output_dir, output_path)
+    merge_ts_ffmpeg(ts_files, output_path)  # 不知道为什么,使用这个方法合成的视频时长会多一些
+    # merge_ts_copy(output_dir, output_path)  # 合成的视频会时间顺序错乱
     print(f"合并完成 {output_path.name}")
     print('-' * 40)
 
